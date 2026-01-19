@@ -148,6 +148,7 @@ def verify_match_belongs_to_tournament(id: int,
     #get active tournament
     active_tournament = session.exec(
         select(Tournament).where(Tournament.status == 'ongoing')
+        .where(Tournament.tournament_id == tournament_id) # for running multiple tournaments
     ).first()
     if not active_tournament:
         raise HTTPException(status_code=400, detail="No active tournament found")
@@ -185,4 +186,81 @@ def update_match_score(team1_score: int,
     session.commit()
     session.refresh(match)
     
+    # check if round is complete and advance tournament if needed
+    check_round = check_round_completion(match.tournament_id, match.round_num, session)
+    if check_round:
+        tournament = session.get(Tournament, match.tournament_id)
+        if tournament:
+            advance_tournament_round(tournament, session)
+        return{"message": "Round complete, tournament advanced"}
+
     return {"match": match}
+
+def check_round_completion(tournament_id: int, 
+                           current_round: int, 
+                           session: sessionDep) -> bool:
+    """Check if all matches in the current round are completed"""
+    pending_matches = session.exec(
+        select(Match).where(
+            (Match.tournament_id == tournament_id) &
+            (Match.round_num == current_round) &
+         
+            (Match.status == "pending")
+        )
+    ).all()
+    return len(pending_matches) == 0
+
+def advance_tournament_round(tournament: Tournament, session: sessionDep):
+    """Advance the tournament to the next round if current round is complete"""
+    print(f" Type : {type(tournament.tournament_id)} value: {tournament.tournament_id}")
+    if check_round_completion(tournament.tournament_id, tournament.current_round, session):
+        if tournament.current_round < tournament.total_rounds:
+            # Advance to next round
+            tournament.current_round += 1
+            session.add(tournament)
+            session.commit()
+            session.refresh(tournament)
+            
+            # Create new matches for next round
+            winners = session.exec(
+                select(Match.winner_id).where(
+                    (Match.tournament_id == tournament.tournament_id) &
+                    (Match.round_num == tournament.current_round - 1)
+                )
+            ).all()
+            winner_ids = [w for w in winners]
+            
+            fixtures = start_game(winner_ids, tournament.current_round)
+            match_list = matches(fixtures)
+            for match in match_list:
+                new_match = Match(
+                    tournament_id = tournament.tournament_id,
+                    round_num = match["round"],
+                    team1_id = str(match["team1"]),
+                    team2_id = str(match["team2"]),
+                    team1_score = 0,
+                    team2_score = 0,
+                    winner_id = None,
+                    loser_id = None,
+                    status = "pending"
+                )
+                session.add(new_match)
+
+            round_record = Game_Round(
+                tournament_id = tournament.tournament_id,
+                round_num = tournament.current_round,
+                matches_in_round = len(match_list),
+                status = "ongoing"
+            )
+            session.add(round_record)
+            
+            session.commit()
+            return {"message": f"Advanced to round {tournament.current_round}", "matches": match_list}
+        else:
+            # Tournament completed
+            tournament.status = "completed"
+            session.add(tournament)
+            session.commit()
+            return {"message": "Tournament completed"}
+    else:
+        return {"message": "Current round not yet complete"}
