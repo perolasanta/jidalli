@@ -1,0 +1,179 @@
+from fastapi import FastAPI, Depends, HTTPException
+from typing import Annotated
+from database import sessionDep, create_db_and_tables
+from models import Player, Game, Scoreboard, Tournament, Match, Game_Round
+from sqlmodel import Session, select, func
+from schemas import PlayerCreate, PlayerRead, GameCreate, GameBase, MatchResult, TournamentCreate
+import random
+from itertools import batched
+from sqlalchemy import update
+import math
+
+app = FastAPI()
+
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
+
+def start_game(teams, present_round):
+    if len(teams) % 2 == 0:
+        random.shuffle(teams) 
+        print (f"Teams before shuffle: {teams}")     
+        draws = list(batched(teams,2))
+        return {"round" : present_round,
+                "matches": draws}
+    else:
+        return {"error" : "Teams not divisible by 2"}
+
+def matches(fixtures):
+    # ✅ Check if there's an error from start_game
+    if "error" in fixtures:
+        print(f"Error in fixtures: {fixtures['error']}")
+        return fixtures  # Return the error, don't try to process
+    
+    match_list = []
+    for k,v in enumerate(fixtures["matches"], 1):
+        match_number  = k
+        team1, team2 = v
+        print (f"Match {match_number} : {team1} vs {team2}")
+        match_data = {
+            "team1": team1,
+            "team2": team2,
+            "match_num" : match_number,   
+            "round": fixtures["round"]
+        }
+        match_list.append(match_data)
+    print(match_list)
+    
+    #save_match_results(match_list, session)
+    return match_list
+ 
+
+@app.post("/tournaments/")
+def create_tournament(tournament: TournamentCreate, session: sessionDep):
+    """Initialize a new tournament - create Game records for all players in round 1"""
+    
+    # Get all players
+    players = session.exec(select(Player)).all()
+    
+    if not players:
+        return {"error": "No players in database"}
+    
+    # Check that players count is a power of 2
+    if (len(players) & (len(players) - 1)) != 0:
+        return {"error": "Number of players must be a power of 2"}
+
+    existing = session.exec(select(Tournament).where(Tournament.name == tournament.name)).first()
+    if existing:
+        return {"error": "Tournament with this name already exists"}
+    
+    # Create Game records for round 1
+    total_rounds = int(math.log2(len(players)))
+    
+    tournament = Tournament(
+        name = tournament.name,
+        status = "ongoing",
+        number_of_teams = len(players),
+        current_round = 1,
+        total_rounds = total_rounds
+    )
+    session.add(tournament)
+    session.flush()  # Ensure tournament_id is generated
+         
+    fixtures = start_game([player.player_id for player in players], 1)     
+    match_list = matches(fixtures)
+    for match in match_list:
+        new_match = Match(
+            tournament_id = tournament.tournament_id,
+            round_num = match["round"],
+            team1_id = str(match["team1"]),
+            team2_id = str(match["team2"]),
+            team1_score = 0,
+            team2_score = 0,
+            winner_id = None,
+            loser_id = None,
+            status = "pending"
+        )
+        session.add(new_match)
+
+    round_record = Game_Round(
+        tournament_id = tournament.tournament_id,
+        round_num = 1,
+        matches_in_round = len(match_list),
+        status = "ongoing"
+    )
+    session.add(round_record)
+    
+    session.commit()
+    return { "tournament": tournament,
+             "matches": match_list,
+             "round_record": round_record
+             }
+
+@app.get("/tournaments/{tournament_id}/matches/")
+def get_tournament_matches(tournament_id: int, session: sessionDep):
+    """Retrieve all matches for a given tournament"""
+    matches = session.exec(
+        select(Match).where(Match.tournament_id == tournament_id)
+    ).all()
+    completed = [m for m in matches if m.status == "completed"]
+    pending = [m for m in matches if m.status == "pending"]
+    return {"matches": completed, "pending": len(pending)}
+
+@app.get("/tournaments/{tournament_id}/current-matches/")
+def get_current_matches(tournament_id: int, session: sessionDep):
+    """Retrieve all current matches for a given tournament"""
+    matches = session.exec(
+        select(Match).where(Match.tournament_id == tournament_id)
+    ).all()
+    pending = [m for m in matches if m.status == "pending"]
+    return {"pending matches": pending}
+
+@app.post("/tournaments/{tournament_id}/matches/{id}/score/")
+def update_match_score(id: int, team1_score: int, 
+                       team2_score: int, 
+                       session: sessionDep,
+                       tournament_id: int):
+    """Update the score of a match and determine winner/loser"""
+    match = session.get(Match, id)
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found")
+    
+    # check if match is in the tournament
+    if match.tournament_id != tournament_id:
+        raise HTTPException(status_code=400, detail="Match does not belong to this tournament")
+    
+    #check if match already completed
+    if match.status == "completed":
+        raise HTTPException(status_code=400, detail="Match already completed")
+    #get active tournament
+    active_tournament = session.exec(
+        select(Tournament).where(Tournament.status == 'ongoing')
+    ).first()
+    if not active_tournament:
+        raise HTTPException(status_code=400, detail="No active tournament found")
+    
+    # check current round
+    if match.round_num != active_tournament.current_round:
+        raise HTTPException(status_code=400, 
+                detail= f"Can only update matches in round {active_tournament.current_round}")
+    
+    # update scores
+    match.team1_score = team1_score
+    match.team2_score = team2_score
+    
+    if team1_score > team2_score:
+        match.winner_id = int(match.team1_id)
+        match.loser_id = int(match.team2_id)
+    elif team2_score > team1_score:
+        match.winner_id = int(match.team2_id)
+        match.loser_id = int(match.team1_id)
+    else:
+        raise HTTPException(status_code=400, detail="Match cannot end in a tie")
+    
+    match.status = "completed"
+    session.add(match)
+    session.commit()
+    session.refresh(match)
+    
+    return {"match": match}

@@ -21,3 +21,13 @@ class GameBase(SQLModel):
 
 class GameCreate(GameBase):
     pass
+
+class MatchResult(SQLModel):
+    match_num: int
+    team_names: list[str]
+    score: list[int]
+    round: int
+
+class TournamentCreate(SQLModel):
+    name: str
+    

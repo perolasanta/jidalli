@@ -1,0 +1,11 @@
+*.db
+.env
+__pycache__/
+.vscode/
+instance/
+*.sqlite
+*.pyc
+.DS_Store
+*.sqlite3-query
+*.sqlite3-journal
+crud.py
