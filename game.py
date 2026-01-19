@@ -47,7 +47,8 @@ def matches(fixtures):
     
     #save_match_results(match_list, session)
     return match_list
- 
+
+    
 
 @app.post("/tournaments/")
 def create_tournament(tournament: TournamentCreate, session: sessionDep):
@@ -129,12 +130,10 @@ def get_current_matches(tournament_id: int, session: sessionDep):
     pending = [m for m in matches if m.status == "pending"]
     return {"pending matches": pending}
 
-@app.post("/tournaments/{tournament_id}/matches/{id}/score/")
-def update_match_score(id: int, team1_score: int, 
-                       team2_score: int, 
-                       session: sessionDep,
-                       tournament_id: int):
-    """Update the score of a match and determine winner/loser"""
+def verify_match_belongs_to_tournament(id: int, 
+                                       tournament_id: int, 
+                                       session: sessionDep) -> Match:
+    """Dependency: Verify match exists, is pending, and belongs to tournament"""
     match = session.get(Match, id)
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -157,6 +156,16 @@ def update_match_score(id: int, team1_score: int,
     if match.round_num != active_tournament.current_round:
         raise HTTPException(status_code=400, 
                 detail= f"Can only update matches in round {active_tournament.current_round}")
+    return match
+
+
+@app.post("/tournaments/{tournament_id}/matches/{id}/score/")
+def update_match_score(team1_score: int, 
+                       team2_score: int, 
+                       session: sessionDep,
+                       match: Annotated[Match, Depends(verify_match_belongs_to_tournament)]
+                       ):
+    """Update the score of a match and determine winner/loser"""
     
     # update scores
     match.team1_score = team1_score
