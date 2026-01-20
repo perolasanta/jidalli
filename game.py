@@ -1,3 +1,4 @@
+from unittest import runner
 from fastapi import FastAPI, Depends, HTTPException
 from typing import Annotated
 from database import sessionDep, create_db_and_tables
@@ -191,8 +192,12 @@ def update_match_score(team1_score: int,
     if check_round:
         tournament = session.get(Tournament, match.tournament_id)
         if tournament:
-            advance_tournament_round(tournament, session)
-        return{"message": "Round complete, tournament advanced"}
+            # capturing this to result makes me get the return value from advance_tournament_round
+            result = advance_tournament_round(tournament, session)
+            
+        return result
+    
+    
 
     return {"match": match}
 
@@ -216,6 +221,16 @@ def advance_tournament_round(tournament: Tournament, session: sessionDep):
     if check_round_completion(tournament.tournament_id, tournament.current_round, session):
         if tournament.current_round < tournament.total_rounds:
             # Advance to next round
+            #
+            this_round = session.exec(
+                select(Game_Round).where(
+                    (Game_Round.tournament_id == tournament.tournament_id) &
+                    (Game_Round.round_num == tournament.current_round)
+                )
+            ).first()
+            if this_round:
+                this_round.status = "completed"
+                session.add(this_round)
             tournament.current_round += 1
             session.add(tournament)
             session.commit()
@@ -256,11 +271,63 @@ def advance_tournament_round(tournament: Tournament, session: sessionDep):
             
             session.commit()
             return {"message": f"Advanced to round {tournament.current_round}", "matches": match_list}
-        else:
+         #  check it is the final round 
+        elif tournament.current_round == tournament.total_rounds:
             # Tournament completed
-            tournament.status = "completed"
-            session.add(tournament)
-            session.commit()
-            return {"message": "Tournament completed"}
+            return complete_tournament(tournament, session)
+    
+        
+        
     else:
         return {"message": "Current round not yet complete"}
+    
+def complete_tournament(tournament: Tournament, session: sessionDep):
+    """Mark the tournament as completed"""
+    final_match = session.exec(
+        select(Match).where(
+            (Match.tournament_id == tournament.tournament_id) &
+            (Match.round_num == tournament.total_rounds) &
+            (Match.status == "completed")
+        )
+    ).first()
+    
+    if not final_match:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    if not final_match.winner_id:
+        raise HTTPException(status_code=400, detail="Final match has no winner")
+    
+    # Update tournament status with winner
+    tournament.winner_id = final_match.winner_id
+    tournament.status = "completed"
+    session.add(tournament)
+    
+    
+
+    # update final round match status
+    final_round = session.exec(
+        select(Game_Round).where(
+            (Game_Round.tournament_id == tournament.tournament_id) &
+            (Game_Round.round_num == tournament.total_rounds)
+        )
+    ).first()
+    if final_round:
+        final_round.status = "completed"
+        session.add(final_round)
+    session.commit()
+    session.refresh(tournament)
+
+    # Get winner details
+    winner = session.get(Player, final_match.winner_id)
+    runner_up = session.get(Player, final_match.loser_id)
+    
+    # Return tournament results
+    return {
+        "message": "Tournament completed",
+        "tournament id": tournament.tournament_id,
+        "winner_id": tournament.winner_id,
+        "winner_name": winner.name,
+        "runner_up_id": final_match.loser_id,
+        "runner_up_name": runner_up.name if runner_up else None, 
+        "final_score": {"team1_score": final_match.team1_score,
+                        "team2_score": final_match.team2_score}
+    }

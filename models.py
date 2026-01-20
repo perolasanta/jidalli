@@ -37,6 +37,7 @@ class Tournament (SQLModel, table=True):
     number_of_teams: int
     current_round: int
     total_rounds: int
+    winner_id: int | None = None
 
 class Match (SQLModel, table=True):
     match_id: int = Field(default=None, primary_key=True)
