@@ -1,5 +1,8 @@
 from unittest import runner
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from typing import Annotated
 from database import sessionDep, create_db_and_tables
 from models import Player, Game, Scoreboard, Tournament, Match, Game_Round
@@ -11,6 +14,13 @@ from sqlalchemy import update
 import math
 
 app = FastAPI()
+
+# Mount static files (CSS, JS, images)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Setup Jinja2 templates
+templates = Jinja2Templates(directory="templates")
+
 
 @app.on_event("startup")
 def on_startup():
@@ -49,7 +59,25 @@ def matches(fixtures):
     #save_match_results(match_list, session)
     return match_list
 
+# ============ TEMPLATE ROUTES ============
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request, session: sessionDep):
+    """Homepage - list all tournaments"""
+    tournaments = session.exec(select(Tournament)).all()
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request, "tournaments": tournaments}
+    )
     
+@app.post("/players/", response_model=PlayerRead)
+def create_player(player: PlayerCreate, session: sessionDep):
+    db_player = Player.model_validate(player)
+    session.add(db_player)
+    session.commit()
+    session.refresh(db_player)
+    return db_player
+
 
 @app.post("/tournaments/")
 def create_tournament(tournament: TournamentCreate, session: sessionDep):
@@ -330,4 +358,341 @@ def complete_tournament(tournament: Tournament, session: sessionDep):
         "runner_up_name": runner_up.name if runner_up else None, 
         "final_score": {"team1_score": final_match.team1_score,
                         "team2_score": final_match.team2_score}
+    }
+
+
+# ============ TEMPLATE ROUTES ============
+
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request, session: sessionDep):
+    """Homepage - list all tournaments"""
+    tournaments = session.exec(select(Tournament)).all()
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request, "tournaments": tournaments}
+    )
+
+@app.get("/players/", response_class=HTMLResponse)
+async def list_players(request: Request, session: sessionDep):
+    """List all players"""
+    players = session.exec(select(Player)).all()
+    return templates.TemplateResponse(
+        "players.html",
+        {"request": request, "players": players}
+    )
+
+@app.get("/players/create", response_class=HTMLResponse)
+async def create_player_form(request: Request):
+    """Show create player form"""
+    return templates.TemplateResponse(
+        "create_player.html", 
+        {"request": request}
+    )
+
+@app.post("/players/create", response_class=HTMLResponse)
+async def create_player_from_form(
+    request: Request,
+    name: Annotated[str, Form()],
+    email: Annotated[str, Form()],
+    session: sessionDep
+):
+    """Handle player creation from HTML form"""
+    player_data = PlayerCreate(name=name, email=email)
+    db_player = create_player(player_data, session)
+    
+    return RedirectResponse(
+        url="/players/",
+        status_code=303
+    )
+
+@app.get("/tournaments/create", response_class=HTMLResponse)
+async def create_tournament_form(request: Request):
+    """Show create tournament form"""
+    return templates.TemplateResponse(
+        "create_tournament.html", 
+        {"request": request}
+    )
+
+
+@app.post("/tournaments/create", response_class=HTMLResponse)
+async def create_tournament_from_form(
+    request: Request,
+    name: Annotated[str, Form()],
+    session: sessionDep
+):
+    """Handle tournament creation from HTML form"""
+    tournament_data = TournamentCreate(name=name)
+    result = create_tournament(tournament_data, session)
+    
+    if "error" in result:
+        return templates.TemplateResponse(
+            "create_tournament.html",
+            {"request": request, "error": result["error"]}
+        )
+    
+    return RedirectResponse(
+        url=f"/tournaments/{result['tournament'].tournament_id}",
+        status_code=303
+    )
+
+
+@app.get("/tournaments/{tournament_id}", response_class=HTMLResponse)
+async def tournament_bracket_view(
+    request: Request, 
+    tournament_id: int, 
+    session: sessionDep
+):
+    """Tournament bracket view with all matches"""
+    tournament = session.get(Tournament, tournament_id)
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    
+    # Get all matches for this tournament
+    matches = session.exec(
+        select(Match).where(Match.tournament_id == tournament_id)
+        .order_by(Match.round_num)
+    ).all()
+    
+    # Group matches by round
+    matches_by_round = {}
+    for match in matches:
+        if match.round_num not in matches_by_round:
+            matches_by_round[match.round_num] = []
+        matches_by_round[match.round_num].append(match)
+    
+    # Get all players
+    player_ids = set()
+    for match in matches:
+        if match.team1_id:
+            player_ids.add(int(match.team1_id))
+        if match.team2_id:
+            player_ids.add(int(match.team2_id))
+    
+    players_list = session.exec(
+        select(Player).where(Player.player_id.in_(player_ids))
+    ).all()
+    
+    players = {str(p.player_id): p for p in players_list}
+    
+    return templates.TemplateResponse(
+        "tournament_bracket.html",
+        {
+            "request": request,
+            "tournament": tournament,
+            "matches_by_round": matches_by_round,
+            "players": players
+        }
+    )
+
+
+@app.get("/tournaments/{tournament_id}/standings", response_class=HTMLResponse)
+async def tournament_standings_view(
+    request: Request, 
+    tournament_id: int, 
+    session: sessionDep
+):
+    """Tournament standings page"""
+    tournament = session.get(Tournament, tournament_id)
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    
+    result = get_tournament_standings(tournament_id, session)
+    
+    return templates.TemplateResponse(
+        "standings.html",
+        {
+            "request": request,
+            "tournament": tournament,
+            "standings": result.get("standings", [])
+        }
+    )
+
+
+@app.get("/tournaments/{tournament_id}/matches/{id}/score", response_class=HTMLResponse)
+async def match_score_form(
+    request: Request,
+    tournament_id: int,
+    id: int,
+    session: sessionDep
+):
+    """Show form to enter match score"""
+    match = verify_match_belongs_to_tournament(id, tournament_id, session)
+    
+    tournament = session.get(Tournament, match.tournament_id)
+    team1 = session.get(Player, int(match.team1_id)) if match.team1_id else None
+    team2 = session.get(Player, int(match.team2_id)) if match.team2_id else None
+    
+    return templates.TemplateResponse(
+        "complete_match.html",
+        {
+            "request": request,
+            "match": match,
+            "tournament": tournament,
+            "team1": team1,
+            "team2": team2
+        }
+    )
+
+
+@app.post("/tournaments/{tournament_id}/matches/{id}/score/", response_class=HTMLResponse)
+async def submit_match_score_from_form(
+    request: Request,
+    tournament_id: int,
+    id: int,
+    team1_score: Annotated[int, Form()],
+    team2_score: Annotated[int, Form()],
+    winner: Annotated[str, Form()],
+    session: sessionDep
+):
+    """Handle match score submission from HTML form"""
+    match = verify_match_belongs_to_tournament(id, tournament_id, session)
+    
+    # Update the match using existing function
+    result = update_match_score(team1_score, team2_score, session, match)
+    
+    # Check if tournament completed
+    if result and "Tournament completed" in result.get("message", ""):
+        return RedirectResponse(
+            url=f"/tournaments/{tournament_id}/winner",
+            status_code=303
+        )
+    
+    return RedirectResponse(
+        url=f"/tournaments/{tournament_id}",
+        status_code=303
+    )
+
+
+@app.get("/tournaments/{tournament_id}/winner", response_class=HTMLResponse)
+async def tournament_winner_view(
+    request: Request,
+    tournament_id: int,
+    session: sessionDep
+):
+    """Tournament winner celebration page"""
+    tournament = session.get(Tournament, tournament_id)
+    if not tournament:
+        raise HTTPException(status_code=404, detail="Tournament not found")
+    
+    if tournament.status != "completed":
+        return RedirectResponse(
+            url=f"/tournaments/{tournament_id}",
+            status_code=303
+        )
+    
+    winner = session.get(Player, tournament.winner_id) if tournament.winner_id else None
+    
+    # Get final match
+    final_match = session.exec(
+        select(Match).where(
+            (Match.tournament_id == tournament_id) &
+            (Match.round_num == tournament.total_rounds)
+        )
+    ).first()
+    
+    runner_up = session.get(Player, final_match.loser_id) if (final_match and final_match.loser_id) else None
+    
+    # Get tournament stats
+    all_matches = session.exec(
+        select(Match).where(
+            (Match.tournament_id == tournament_id) &
+            (Match.status == "completed")
+        )
+    ).all()
+    
+    total_matches = len(all_matches)
+    total_points = sum(m.team1_score + m.team2_score for m in all_matches)
+    
+    return templates.TemplateResponse(
+        "winner.html",
+        {
+            "request": request,
+            "tournament": tournament,
+            "winner": winner,
+            "runner_up": runner_up,
+            "final_match": final_match,
+            "total_matches": total_matches,
+            "total_points": total_points
+        }
+    )
+
+
+def get_tournament_standings(tournament_id: int, session: sessionDep):
+    """Get complete standings for a tournament"""
+    tournament = session.exec(
+        select(Tournament).where(Tournament.tournament_id == tournament_id)
+    ).first()
+    
+    if not tournament:
+        return {"error": "Tournament not found"}
+    
+    # Get all completed matches
+    matches = session.exec(
+        select(Match).where(
+            (Match.tournament_id == tournament_id) &
+            (Match.status == "completed")
+        ).order_by(Match.round_num.desc())
+    ).all()
+    
+    # Track team performance
+    team_stats = {}
+    
+    for match in matches:
+        # Winner stats
+        if match.winner_id:
+            winner_str = str(match.winner_id)
+            if winner_str not in team_stats:
+                team_stats[winner_str] = {
+                    "wins": 0,
+                    "losses": 0,
+                    "rounds_reached": match.round_num
+                }
+            team_stats[winner_str]["wins"] += 1
+            team_stats[winner_str]["rounds_reached"] = max(
+                team_stats[winner_str]["rounds_reached"], 
+                match.round_num
+            )
+        
+        # Loser stats
+        if match.loser_id:
+            loser_str = str(match.loser_id)
+            if loser_str not in team_stats:
+                team_stats[loser_str] = {
+                    "wins": 0,
+                    "losses": 0,
+                    "rounds_reached": match.round_num
+                }
+            team_stats[loser_str]["losses"] += 1
+    
+    # Sort by performance (rounds reached, then wins)
+    sorted_teams = sorted(
+        team_stats.items(),
+        key=lambda x: (x[1]["rounds_reached"], x[1]["wins"]),
+        reverse=True
+    )
+    
+    standings = []
+    for rank, (team_id, stats) in enumerate(sorted_teams, 1):
+        try:
+            player = session.get(Player, int(team_id))
+            team_name = player.name if player else f"Player {team_id}"
+        except:
+            team_name = f"Player {team_id}"
+            
+        standings.append({
+            "rank": rank,
+            "team_id": team_id,
+            "team_name": team_name,
+            "wins": stats["wins"],
+            "losses": stats["losses"],
+            "rounds_reached": stats["rounds_reached"],
+            "is_champion": str(team_id) == str(tournament.winner_id) if tournament.winner_id else False
+        })
+    
+    return {
+        "tournament_id": tournament_id,
+        "status": tournament.status,
+        "current_round": tournament.current_round,
+        "total_rounds": tournament.total_rounds,
+        "standings": standings
     }

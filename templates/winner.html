@@ -1,0 +1,60 @@
+
+<!-- templates/winner.html -->
+{% extends "base.html" %}
+
+{% block title %}🏆 Tournament Champion - {{ tournament.name }}{% endblock %}
+
+{% block content %}
+<div class="winner-celebration">
+    <div class="confetti"></div>
+    
+    <div class="winner-container">
+        <h1 class="celebration-title">🎉 Tournament Complete! 🎉</h1>
+        
+        <div class="tournament-name">{{ tournament.name }}</div>
+        
+        <div class="champion-card">
+            <div class="trophy-icon">🏆</div>
+            <h2 class="champion-label">CHAMPION</h2>
+            <h3 class="champion-name">{{ winner.name if winner else "Player " + tournament.winner_id|string }}</h3>
+        </div>
+        
+        {% if runner_up %}
+        <div class="runner-up-card">
+            <h4>🥈 Runner-up</h4>
+            <p>{{ runner_up.name }}</p>
+        </div>
+        {% endif %}
+        
+        {% if final_match %}
+        <div class="final-score-display">
+            <h4>Final Match Score</h4>
+            <div class="score-large">
+                {{ final_match.team1_score }} - {{ final_match.team2_score }}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="tournament-stats">
+            <div class="stat-box">
+                <span class="stat-number">{{ total_matches }}</span>
+                <span class="stat-label">Total Matches</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">{{ tournament.total_rounds }}</span>
+                <span class="stat-label">Rounds</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">{{ total_points }}</span>
+                <span class="stat-label">Total Points</span>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <a href="/tournaments/{{ tournament.tournament_id }}" class="btn btn-outline">View Bracket</a>
+            <a href="/tournaments/{{ tournament.tournament_id }}/standings" class="btn btn-primary">View Standings</a>
+            <a href="/" class="btn btn-secondary">Back to Home</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

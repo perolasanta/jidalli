@@ -1,0 +1,58 @@
+<!-- templates/tournament1.html -->
+{% extends "base1.html" %}
+
+{% block title %}{{ tournament.name }} - Tournament Manager{% endblock %}
+
+{% block content %}
+<div class="tournament-header">
+    <h1>{{ tournament.name }}</h1>
+    <div class="tournament-info">
+        <span>Status: {{ tournament.status }}</span>
+        <span>Round: {{ tournament.current_round }} / {{ tournament.total_rounds }}</span>
+    </div>
+</div>
+
+{% for round_num, matches in matches_by_round.items() %}
+<div class="round-section">
+    <h2>Round {{ round_num }}
+        {% if round_num == tournament.total_rounds %}
+            (Finals)
+        {% elif round_num == tournament.total_rounds - 1 %}
+            (Semi-Finals)
+        {% endif %}
+    </h2>
+    
+    <div class="matches-grid">
+        {% for match in matches %}
+        <div class="match-card {% if match.status == 'completed' %}completed{% endif %}">
+            <div class="match-header">
+                <span>Match #{{ match.match_id }}</span>
+                <span class="status-{{ match.status }}">{{ match.status }}</span>
+            </div>
+            
+            <div class="match-teams">
+                <div class="team {% if match.winner_id == match.team1_id %}winner{% endif %}">
+                    <span class="team-name">Team {{ match.team1_id }}</span>
+                    <span class="score">{{ match.team1_score }}</span>
+                </div>
+                
+                <div class="vs">VS</div>
+                
+                <div class="team {% if match.winner_id == match.team2_id %}winner{% endif %}">
+                    <span class="team-name">Team {{ match.team2_id }}</span>
+                    <span class="score">{{ match.team2_score }}</span>
+                </div>
+            </div>
+            
+            {% if match.status == "pending" %}
+                <a href="/matches/{{ match.match_id }}" class="btn btn-small">Complete Match</a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+<a href="/" class="btn btn-secondary">Back to Tournaments</a>
+{% endblock %}
+

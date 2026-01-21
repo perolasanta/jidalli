@@ -1,0 +1,92 @@
+<!-- templates/tournament_bracket.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ tournament.name }} - Bracket{% endblock %}
+
+{% block content %}
+<div class="tournament-header">
+    <div class="header-content">
+        <h1>{{ tournament.name }}</h1>
+        <div class="tournament-meta">
+            <span class="badge badge-{{ tournament.status }}">{{ tournament.status }}</span>
+            <span class="round-info">Round {{ tournament.current_round }} of {{ tournament.total_rounds }}</span>
+        </div>
+    </div>
+    <div class="header-actions">
+        <a href="/tournaments/{{ tournament.tournament_id }}/standings" class="btn btn-outline">📊 Standings</a>
+        <a href="/" class="btn btn-secondary">← Back</a>
+    </div>
+</div>
+
+<div class="bracket-container">
+    {% for round_num in range(1, tournament.total_rounds + 1) %}
+    <div class="round-column {% if round_num == tournament.current_round %}current-round{% endif %}">
+        <h2 class="round-title">
+            {% if round_num == tournament.total_rounds %}
+                🏆 Finals
+            {% elif round_num == tournament.total_rounds - 1 %}
+                Semi-Finals
+            {% elif round_num == tournament.total_rounds - 2 %}
+                Quarter-Finals
+            {% else %}
+                Round {{ round_num }}
+            {% endif %}
+        </h2>
+        
+        <div class="matches-list">
+            {% if round_num in matches_by_round %}
+                {% for match in matches_by_round[round_num] %}
+                <div class="match-card {% if match.status == 'completed' %}completed{% elif match.status == 'pending' and round_num == tournament.current_round %}active{% else %}future{% endif %}">
+                    <div class="match-number">Match #{{ match.match_id }}</div>
+                    
+                    <div class="team {% if match.winner_id == match.team1_id|string %}winner{% endif %}">
+                        <div class="team-info">
+                            <span class="team-name">
+                                {% if match.team1_id in players %}
+                                    {{ players[match.team1_id].name }}
+                                {% else %}
+                                    Player {{ match.team1_id }}
+                                {% endif %}
+                            </span>
+                            {% if match.winner_id == match.team1_id|string %}
+                                <span class="winner-badge">👑</span>
+                            {% endif %}
+                        </div>
+                        <span class="score">{{ match.team1_score }}</span>
+                    </div>
+                    
+                    <div class="vs-divider">VS</div>
+                    
+                    <div class="team {% if match.winner_id == match.team2_id|string %}winner{% endif %}">
+                        <div class="team-info">
+                            <span class="team-name">
+                                {% if match.team2_id in players %}
+                                    {{ players[match.team2_id].name }}
+                                {% else %}
+                                    Player {{ match.team2_id }}
+                                {% endif %}
+                            </span>
+                            {% if match.winner_id == match.team2_id|string %}
+                                <span class="winner-badge">👑</span>
+                            {% endif %}
+                        </div>
+                        <span class="score">{{ match.team2_score }}</span>
+                    </div>
+                    
+                    {% if match.status == 'pending' and round_num == tournament.current_round %}
+                        <a href="/tournaments/{{ tournament.tournament_id }}/matches/{{ match.match_id }}/score" class="btn btn-small btn-primary">Enter Score</a>
+                    {% elif match.status == 'completed' %}
+                        <div class="match-status">✓ Completed</div>
+                    {% else %}
+                        <div class="match-status">⏳ Pending</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-matches">No matches yet</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

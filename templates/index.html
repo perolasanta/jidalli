@@ -1,0 +1,56 @@
+<!-- templates/index.html -->
+{% extends "base.html" %}
+
+{% block title %}Home - Tournament Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏆 Tournaments</h1>
+    <a href="/tournaments/create" class="btn btn-primary">+ Create Tournament</a>
+</div>
+
+{% if tournaments %}
+    <div class="tournament-grid">
+        {% for tournament in tournaments %}
+        <div class="tournament-card {% if tournament.status == 'completed' %}completed{% endif %}">
+            <div class="card-header">
+                <h2>{{ tournament.name }}</h2>
+                <span class="badge badge-{{ tournament.status }}">{{ tournament.status }}</span>
+            </div>
+            
+            <div class="card-body">
+                <div class="stat-row">
+                    <div class="stat">
+                        <span class="stat-label">Teams</span>
+                        <span class="stat-value">{{ tournament.number_of_teams }}</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Round</span>
+                        <span class="stat-value">{{ tournament.current_round }}/{{ tournament.total_rounds }}</span>
+                    </div>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ (tournament.current_round / tournament.total_rounds * 100) }}%"></div>
+                </div>
+            </div>
+            
+            <div class="card-footer">
+                {% if tournament.status == "completed" %}
+                    <a href="/tournaments/{{ tournament.tournament_id }}/winner" class="btn btn-success">View Winner 🎉</a>
+                {% else %}
+                    <a href="/tournaments/{{ tournament.tournament_id }}" class="btn btn-outline">View Bracket</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="empty-state">
+        <div class="empty-icon">🏆</div>
+        <h2>No Tournaments Yet</h2>
+        <p>Create your first tournament to get started!</p>
+        <a href="/tournaments/create" class="btn btn-primary">Create Tournament</a>
+    </div>
+{% endif %}
+{% endblock %}

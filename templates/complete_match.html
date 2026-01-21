@@ -1,0 +1,93 @@
+<!-- templates/complete_match.html -->
+{% extends "base.html" %}
+
+{% block title %}Enter Score - Match #{{ match.match_id }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Enter Match Score</h1>
+    <p class="subtitle">{{ tournament.name }} - Round {{ match.round_num }}</p>
+</div>
+
+<div class="match-score-container">
+    <form method="post" action="/tournaments/{{ tournament.tournament_id }}/matches/{{ match.match_id }}/score/" id="scoreForm">
+        <div class="score-grid">
+            <div class="player-score {% if team1 %}has-player{% endif %}">
+                <div class="player-header">
+                    <h3>{% if team1 %}{{ team1.name }}{% else %}Player {{ match.team1_id }}{% endif %}</h3>
+                </div>
+                
+                <div class="score-input-group">
+                    <label for="team1_score">Score</label>
+                    <input type="number" 
+                           id="team1_score" 
+                           name="team1_score" 
+                           min="0" 
+                           value="0" 
+                           required 
+                           class="score-input">
+                </div>
+                
+                <div class="winner-checkbox">
+                    <input type="radio" 
+                           id="winner1" 
+                           name="winner" 
+                           value="{{ match.team1_id }}" 
+                           required>
+                    <label for="winner1">Winner 🏆</label>
+                </div>
+            </div>
+            
+            <div class="vs-center">VS</div>
+            
+            <div class="player-score {% if team2 %}has-player{% endif %}">
+                <div class="player-header">
+                    <h3>{% if team2 %}{{ team2.name }}{% else %}Player {{ match.team2_id }}{% endif %}</h3>
+                </div>
+                
+                <div class="score-input-group">
+                    <label for="team2_score">Score</label>
+                    <input type="number" 
+                           id="team2_score" 
+                           name="team2_score" 
+                           min="0" 
+                           value="0" 
+                           required 
+                           class="score-input">
+                </div>
+                
+                <div class="winner-checkbox">
+                    <input type="radio" 
+                           id="winner2" 
+                           name="winner" 
+                           value="{{ match.team2_id }}" 
+                           required>
+                    <label for="winner2">Winner 🏆</label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-actions centered">
+            <button type="submit" class="btn btn-primary btn-large">Submit Score</button>
+            <a href="/tournaments/{{ tournament.tournament_id }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Auto-select winner based on score
+    document.getElementById('team1_score').addEventListener('input', autoSelectWinner);
+    document.getElementById('team2_score').addEventListener('input', autoSelectWinner);
+    
+    function autoSelectWinner() {
+        const score1 = parseInt(document.getElementById('team1_score').value) || 0;
+        const score2 = parseInt(document.getElementById('team2_score').value) || 0;
+        
+        if (score1 > score2) {
+            document.getElementById('winner1').checked = true;
+        } else if (score2 > score1) {
+            document.getElementById('winner2').checked = true;
+        }
+    }
+</script>
+{% endblock %}

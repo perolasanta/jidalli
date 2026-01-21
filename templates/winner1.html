@@ -1,0 +1,39 @@
+<!-- templates/winner1.html -->
+{% extends "base1.html" %}
+
+{% block title %}Tournament Winner - {{ tournament.name }}{% endblock %}
+
+{% block content %}
+<div class="winner-page">
+    <h1>🏆 Tournament Complete! 🏆</h1>
+    
+    <div class="winner-card">
+        <h2>{{ tournament.name }}</h2>
+        
+        <div class="champion">
+            <div class="trophy">👑</div>
+            <h3>Champion</h3>
+            <p class="winner-name">{{ winner.name if winner else "Unknown" }}</p>
+        </div>
+        
+        {% if runner_up %}
+        <div class="runner-up">
+            <h4>Runner-up</h4>
+            <p>{{ runner_up.name }}</p>
+        </div>
+        {% endif %}
+        
+        {% if final_match %}
+        <div class="final-score">
+            <h4>Final Score</h4>
+            <p>{{ final_match.team1_score }} - {{ final_match.team2_score }}</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="actions">
+        <a href="/tournaments/{{ tournament.tournament_id }}" class="btn">View Tournament</a>
+        <a href="/" class="btn btn-secondary">Back to Home</a>
+    </div>
+</div>
+{% endblock %}

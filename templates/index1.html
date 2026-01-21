@@ -1,0 +1,29 @@
+<!-- templates/index1.html -->
+{% extends "base1.html" %}
+
+{% block title %}Home - Tournament Manager{% endblock %}
+
+{% block content %}
+<h1>Tournaments</h1>
+
+{% if tournaments %}
+    <div class="tournament-grid">
+        {% for tournament in tournaments %}
+        <div class="tournament-card">
+            <h2>{{ tournament.name }}</h2>
+            <p>Status: <span class="status-{{ tournament.status }}">{{ tournament.status }}</span></p>
+            <p>Round: {{ tournament.current_round }} / {{ tournament.total_rounds }}</p>
+            
+            {% if tournament.status == "completed" %}
+                <a href="/tournaments/{{ tournament.tournament_id }}/winner" class="btn">View Winner</a>
+            {% else %}
+                <a href="/tournaments/{{ tournament.tournament_id }}" class="btn">View Details</a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p>No tournaments yet. <a href="/tournaments/create">Create one!</a></p>
+{% endif %}
+{% endblock %}
+

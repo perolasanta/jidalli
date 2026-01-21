@@ -1,0 +1,72 @@
+<!-- templates/standings.html -->
+{% extends "base.html" %}
+
+{% block title %}Standings - {{ tournament.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 Tournament Standings</h1>
+    <p class="subtitle">{{ tournament.name }}</p>
+</div>
+
+<div class="standings-container">
+    <table class="standings-table">
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Wins</th>
+                <th>Losses</th>
+                <th>Rounds Reached</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for standing in standings %}
+            <tr class="{% if standing.is_champion %}champion-row{% endif %}">
+                <td class="rank">
+                    {% if standing.rank == 1 %}
+                        <span class="medal gold">🥇</span>
+                    {% elif standing.rank == 2 %}
+                        <span class="medal silver">🥈</span>
+                    {% elif standing.rank == 3 %}
+                        <span class="medal bronze">🥉</span>
+                    {% else %}
+                        {{ standing.rank }}
+                    {% endif %}
+                </td>
+                <td class="player-name">
+                    <strong>{{ standing.team_name }}</strong>
+                    {% if standing.is_champion %}
+                        <span class="champion-badge">👑 Champion</span>
+                    {% endif %}
+                </td>
+                <td>{{ standing.wins }}</td>
+                <td>{{ standing.losses }}</td>
+                <td>
+                    {% if standing.rounds_reached == tournament.total_rounds %}
+                        Finals
+                    {% elif standing.rounds_reached == tournament.total_rounds - 1 %}
+                        Semi-Finals
+                    {% else %}
+                        Round {{ standing.rounds_reached }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if standing.is_champion %}
+                        <span class="badge badge-success">Winner</span>
+                    {% else %}
+                        <span class="badge badge-secondary">Eliminated</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="actions centered">
+    <a href="/tournaments/{{ tournament.tournament_id }}" class="btn btn-primary">View Bracket</a>
+    <a href="/" class="btn btn-secondary">Back to Home</a>
+</div>
+{% endblock %}

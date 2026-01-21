@@ -1,0 +1,39 @@
+<!-- templates/match1.html -->
+{% extends "base1.html" %}
+
+{% block title %}Complete Match - Tournament Manager{% endblock %}
+
+{% block content %}
+<h1>Complete Match</h1>
+
+<div class="match-details">
+    <h2>{{ tournament.name }} - Round {{ match.round_num }}</h2>
+    
+    <form method="post" action="/matches/{{ match.match_id }}/complete">
+        <div class="team-scores">
+            <div class="team-input">
+                <label>
+                    <input type="radio" name="winner_id" value="{{ match.team1_id }}" required>
+                    {{ team1.name if team1 else "Team " + match.team1_id }}
+                </label>
+                <input type="number" name="team1_score" min="0" value="0" required>
+            </div>
+            
+            <div class="vs">VS</div>
+            
+            <div class="team-input">
+                <label>
+                    <input type="radio" name="winner_id" value="{{ match.team2_id }}" required>
+                    {{ team2.name if team2 else "Team " + match.team2_id }}
+                </label>
+                <input type="number" name="team2_score" min="0" value="0" required>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Complete Match</button>
+            <a href="/tournaments/{{ match.tournament_id }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

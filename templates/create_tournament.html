@@ -1,0 +1,28 @@
+<!-- templates/create_tournament.html -->
+{% extends "base.html" %}
+
+{% block title %}Create Tournament{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Create New Tournament</h1>
+</div>
+
+<div class="form-container">
+    <form method="post" action="{{url_for('create_tournament_from_form')}}" class="tournament-form" id="createTournamentForm">
+        <div class="form-group">
+            <label for="name">Tournament Name</label>
+            <input type="text" id="name" name="name" required placeholder="e.g., Summer Championship 2024">
+        </div>
+        
+        <div class="info-box">
+            <strong>Note:</strong> The tournament will include all registered players. Make sure you have a power of 2 number of players (2, 4, 8, 16, etc.).
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Create Tournament</button>
+            <a href="/" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

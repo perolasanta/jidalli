@@ -1,0 +1,39 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tournament Manager{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <a href="/" class="logo">🏆 Tournament Manager</a>
+            <div class="nav-links">
+                <a href="/">Tournaments</a>
+                <a href="/players">Players</a>
+                <a href="/players/create">Register Player</a>
+            </div>
+        </div>
+    </nav>
+    
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 Petbell Did This. All rights reserved.</p>
+        </div>
+    </footer>
+    
+    <script src="/static/script.js"></script>
+</body>
+</html>
+
+
+
+
+
