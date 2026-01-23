@@ -1,6 +1,6 @@
 from sqlmodel import Column, Integer, String, ForeignKey
 from sqlmodel import SQLModel, Relationship, Field
-
+from datetime import datetime
 
 class Player(SQLModel, table=True):
     player_id: int = Field(default=None, primary_key=True)
@@ -57,3 +57,33 @@ class Game_Round (SQLModel, table=True):
     round_num: int
     matches_in_round: int
     status: str
+
+
+    # =========== JWT Authentication Models ===========
+class User(SQLModel, table=True):
+    user_id: int = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True)
+    email: str = Field(index=True, unique=True)
+    full_name: str
+    password: str
+    is_admin: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    is_active: bool = Field(default=True)
+    is_verified: bool = Field(default=False)
+
+
+class VerificationToken(SQLModel, table=True):
+    token_id: int = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.user_id")
+    token: str = Field(index=True, unique=True)
+    token_type: str  # e.g., "email_verification", "password_reset"
+    expires_at: datetime =Field()
+    used: bool = Field(default=False)
+
+class RefreshToken(SQLModel, table=True):
+    refresh_token_id: int = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.user_id")
+    token: str = Field(index=True, unique=True)
+    expires_at: datetime = Field()
+    revoked: bool = Field(default=False)

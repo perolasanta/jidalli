@@ -1,0 +1,161 @@
+<!-- templates/login.html -->
+{% extends "base.html" %}
+
+{% block title %}Register - Tournament Manager{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>Sign In To Account</h1>
+            <p>Join the tournament community</p>
+        </div>
+        
+        {% if error %}
+        <div class="alert alert-error">
+            <span class="alert-icon">⚠️</span>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+        
+        {% if success %}
+        <div class="alert alert-success">
+            <span class="alert-icon">✓</span>
+            <span>{{ success }}</span>
+        </div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('login_for_access_token') }}" class="auth-form" id="loginForm">
+            <div class="form-group">
+                <label for="username">
+                    Username
+                    <span class="required">*</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    required 
+                    minlength="3"
+                    maxlength="50"
+                    pattern="[a-zA-Z0-9_]+"
+                    placeholder="Choose a unique username">
+                <small class="form-hint">Letters, numbers, and underscores only</small>
+            </div>
+            
+                        
+            <div class="form-group">
+                <label for="password">
+                    Password
+                    <span class="required">*</span>
+                </label>
+                <div class="password-input-wrapper">
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        required 
+                        minlength="8"
+                        placeholder="Create a strong password">
+                    <button type="button" class="password-toggle" onclick="togglePassword('password')">
+                        👁️
+                    </button>
+                </div>
+                <small class="form-hint">At least 8 characters</small>
+                <div class="password-strength" id="passwordStrength"></div>
+            </div>
+            
+            
+            
+            <div class="form-group checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" required>
+                    <span>I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy" target="_blank">Privacy Policy</a></span>
+                </label>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-large btn-block">
+                Sign In
+            </button>
+        </form>
+        
+        <div class="auth-footer">
+            <p>Don't have an account? <a href="/register">Sign up</a></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Password strength indicator
+    const passwordInput = document.getElementById('password');
+    const strengthIndicator = document.getElementById('passwordStrength');
+    
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        let strength = 0;
+        let feedback = '';
+        
+        if (password.length >= 8) strength++;
+        if (password.length >= 12) strength++;
+        if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+        if (/\d/.test(password)) strength++;
+        if (/[^a-zA-Z\d]/.test(password)) strength++;
+        
+        if (password.length === 0) {
+            strengthIndicator.innerHTML = '';
+            return;
+        }
+        
+        if (strength <= 2) {
+            feedback = '<span class="strength-weak">Weak password</span>';
+        } else if (strength <= 3) {
+            feedback = '<span class="strength-medium">Medium password</span>';
+        } else {
+            feedback = '<span class="strength-strong">Strong password</span>';
+        }
+        
+        strengthIndicator.innerHTML = feedback;
+    });
+    
+    // Password match validation
+    const confirmPassword = document.getElementById('confirm_password');
+    const passwordMatch = document.getElementById('passwordMatch');
+    
+    confirmPassword.addEventListener('input', function() {
+        if (this.value === '') {
+            passwordMatch.innerHTML = '';
+            return;
+        }
+        
+        if (this.value === passwordInput.value) {
+            passwordMatch.innerHTML = '<span style="color: var(--success);">✓ Passwords match</span>';
+        } else {
+            passwordMatch.innerHTML = '<span style="color: var(--danger);">✗ Passwords do not match</span>';
+        }
+    });
+    
+    // Toggle password visibility
+    function togglePassword(fieldId) {
+        const field = document.getElementById(fieldId);
+        field.type = field.type === 'password' ? 'text' : 'password';
+    }
+    
+    // Form validation
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        
+        if (password !== confirmPassword) {
+            e.preventDefault();
+            alert('Passwords do not match!');
+            return false;
+        }
+        
+        if (password.length < 8) {
+            e.preventDefault();
+            alert('Password must be at least 8 characters long!');
+            return false;
+        }
+    });
+</script>
+{% endblock %}

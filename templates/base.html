@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Tournament Manager{% endblock %}</title>
+    <title>{% block title %}JIDALLI Tournament Manager{% endblock %}</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <nav>
         <div class="container">
-            <a href="/" class="logo">🏆 Tournament Manager</a>
+            <a href="/" class="logo">🏆 JIDALLI Tournament Manager</a>
             <div class="nav-links">
                 <a href="/">Tournaments</a>
                 <a href="/players">Players</a>
@@ -19,6 +19,13 @@
         </div>
     </nav>
     
+        <div class="user-info">
+    {% if user %}
+        Logged in as <strong>{{ user.username }}</strong> | <a href="/logout">Logout</a>
+    {% else %}
+        <a href="/login" class="login-link">Login</a>
+    {% endif %}
+</div>
     <main class="container">
         {% block content %}{% endblock %}
     </main>

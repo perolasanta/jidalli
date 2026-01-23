@@ -1,0 +1,40 @@
+<!-- templates/register_success.html -->
+{% extends "base.html" %}
+
+{% block title %}Registration Successful{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="success-card">
+        <div class="success-icon">✉️</div>
+        <h1>Check Your Email!</h1>
+        <p class="success-message">
+            We've sent a verification link to <strong>{{ email }}</strong>
+        </p>
+        <div class="info-box">
+            <p>Please verify your email address to activate your account and start participating in tournaments.</p>
+        </div>
+        <div class="verification-steps">
+            <h3>Next Steps:</h3>
+            <ol>
+                <li>Check your inbox for an email from Tournament Manager</li>
+                <li>Click the verification link in the email</li>
+                <li>Your account will be activated</li>
+                <li>You can then sign in and join tournaments!</li>
+            </ol>
+        </div>
+        <div class="help-text">
+            <p>Didn't receive the email?</p>
+            <ul>
+                <li>Check your spam/junk folder</li>
+                <li>Wait a few minutes and refresh your inbox</li>
+                <li>Make sure you entered the correct email address</li>
+            </ul>
+            <a href="/resend-verification" class="btn btn-outline">Resend Verification Email</a>
+        </div>
+        <div class="actions centered">
+            <a href="/" class="btn btn-primary">Go to Home</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

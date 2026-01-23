@@ -41,3 +41,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+document.addEventListener('DOMContentLoaded', () => {
+    // Find all flash messages
+    const messages = document.querySelectorAll('.flash-message');
+    
+    messages.forEach(msg => {
+        // Set a timer to start the fade out after 4 seconds
+        setTimeout(() => {
+            msg.style.opacity = '0';
+            msg.style.transform = 'translateX(20px)';
+            msg.style.transition = 'all 0.6s ease';
+            
+            // Remove the element from the DOM entirely after the transition
+            setTimeout(() => {
+                msg.remove();
+            }, 600);
+        }, 4000);
+    });
+});
