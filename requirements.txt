@@ -9,3 +9,4 @@ python-jose >=3.5.0
 passlib >=1.7.4
 pydantic[email] >=2.12.5
 python-dotenv >=1.2.1
+resend >=2.21.0

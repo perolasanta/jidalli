@@ -2,11 +2,8 @@ from email.mime import base
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from json import load
-from locale import currency
-from re import M
 import smtplib
 from unittest import runner
-from weakref import ref
 from webbrowser import get
 from fastapi import BackgroundTasks, FastAPI, Depends, HTTPException, Request, Form, Response, requests, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -28,8 +25,11 @@ from datetime import datetime, timedelta
 import secrets
 from passlib.context import CryptContext
 from dotenv import load_dotenv
-
+#import mailtrap as mt
+import resend
 load_dotenv()
+
+
 # ============ ENVIRONMENT VARIABLES ============
 SECRET_KEY = os.getenv("SECRET_KEY", "your_default_secret_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
@@ -62,7 +62,10 @@ SMTP_PASSWORD=os.getenv("SMTP_PASSWORD")
 FROM_EMAIL=os.getenv("FROM_EMAIL", "jidalli@example.com")
 MAIL_STARTTLS=os.getenv("MAIL_STARTTLS", "True").lower() in ("true", "1", "t")
 MAIL_SSL_TLS=os.getenv("MAIL_SSL_TLS", "False").lower() in ("true", "1", "t")
-
+MAILTRAP_API=os.getenv("MAILTRAP_API")
+MAILTRAP_USE_SANDBOX=os.getenv("MAILTRAP_USE_SANDBOX", "True").lower() in ("true", "1", "t")
+MAILTRAP_INBOX_ID=int(os.getenv("MAILTRAP_INBOX_ID"))
+RESEND_API=os.getenv("RESEND_API","re_hBLd9qzs_4hJjRJSnSZD5J39EFfv31WPW")
 
 
 app = FastAPI()
@@ -442,6 +445,47 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
     return pwd_context.verify(plain_password, hashed_password)
 
+#client = mt.MailtrapClient(token=MAILTRAP_API, sandbox=True, inbox_id=4328972)
+def send_verification_email_task(email: str, token: str, name: str):
+    verification_link = f"{base_url}/verify-email?token={token}"
+    
+    html_body = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2 style="color: #27ae60;">Welcome to Jidalli Tournament Manager</h2>
+            <p>Hello {name},</p>
+            <p>Please verify your email by clicking the button below:</p>
+            <p style="margin: 30px 0;">
+                <a href="{verification_link}" 
+                   style="background-color: #27ae60; color: white; padding: 12px 30px; 
+                          text-decoration: none; border-radius: 5px; display: inline-block;">
+                    Verify Email
+                </a>
+            </p>
+            <p>Or copy this link: {verification_link}</p>
+        </body>
+    </html>
+    """
+    
+    resend.api_key=RESEND_API   # Must save it to resend.api_key   
+    
+    try:
+        print(f"Sending message to {email}....")
+        resend.Emails.send({
+            "from": "Jidalli <onboarding@resend.dev>",  # Free tier uses resend.dev
+            "to": [email],
+            "subject": "Verify your email - Jidalli Tournament Manager",
+            "html": html_body
+        })
+        
+        print(f"✓ Email sent to {email}: Status: OK")
+    except Exception as e:
+        print(f"✗ Failed to send email to {email}: {e}")
+
+def send_verification_email(email: str, token: str, name: str, background_tasks: BackgroundTasks):
+    background_tasks.add_task(send_verification_email_task,email,token, name)
+
+
 def send_email(to_email: str, subject: str, body: str, background_tasks:BackgroundTasks):
     """Send an email (placeholder function)"""
     if not EMAILS_ENABLED:
@@ -473,29 +517,29 @@ def send_email(to_email: str, subject: str, body: str, background_tasks:Backgrou
     # Here you would integrate with an actual email sending service
     print(f"Sending email to {to_email}:\nSubject: {subject}\n\n{body}")
 
-def send_verification_email(to_email: str, token: str, full_name: str, background_tasks:BackgroundTasks):
-    """Send verification email to user (placeholder function)"""
-    if not EMAILS_ENABLED:
-        print("Email sending is disabled.")
-        return
+# Disable this to use email api above cos render.com blocks smtp ports
+#def send_verification_email(to_email: str, token: str, full_name: str, background_tasks:BackgroundTasks):
+ #   """Send verification email to user (placeholder function)"""
+  #  if not EMAILS_ENABLED:
+   #     print("Email sending is disabled.")
+    #    return
     
-    verification_link = f"{base_url}/verify-email?token={token}"
-    subject = "Verify your email address"
-    body = f"""
-    <html>
-    <body>
-    <H2> Welcome to Jidalli Tournament Manager</H2>
-    <p>Hello {full_name},</p>
-    <p>Please verify your email by clicking the link below:</p>
-    <strong><a href="{verification_link}">Verify Email</a></strong>
-    <p>Thank you!</p>
-    </body>
-    </html>
-    """
+    #verification_link = f"{base_url}/verify-email?token={token}"
+    #subject = "Verify your email address"
+    #body = f"""
+    #<html>
+    #<body>
+    #<H2> Welcome to Jidalli Tournament Manager</H2>
+    #<p>Hello {full_name},</p>
+    #<p>Please verify your email by clicking the link below:</p>
+    #<strong><a href="{verification_link}">Verify Email</a></strong>
+    #<p>Thank you!</p>
+    #</body>
+    #</html>
+    #"""
 
-    send_email(to_email, subject, body, background_tasks)
-    # Here you would integrate with an actual email sending service
-    print(f"Sending email to {to_email}:\nSubject: {subject}\n\n{body}")
+    #send_email(to_email, subject, body, background_tasks)
+    #print(f"Sending email to {to_email}:\nSubject: {subject}\n\n{body}")
 
 def create_access_token(data: dict, expires_delta:timedelta | None = None):
     """Create a JWT access token"""
