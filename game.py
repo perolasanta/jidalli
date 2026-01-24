@@ -62,9 +62,9 @@ SMTP_PASSWORD=os.getenv("SMTP_PASSWORD")
 FROM_EMAIL=os.getenv("FROM_EMAIL", "jidalli@example.com")
 MAIL_STARTTLS=os.getenv("MAIL_STARTTLS", "True").lower() in ("true", "1", "t")
 MAIL_SSL_TLS=os.getenv("MAIL_SSL_TLS", "False").lower() in ("true", "1", "t")
-MAILTRAP_API=os.getenv("MAILTRAP_API")
-MAILTRAP_USE_SANDBOX=os.getenv("MAILTRAP_USE_SANDBOX", "True").lower() in ("true", "1", "t")
-MAILTRAP_INBOX_ID=int(os.getenv("MAILTRAP_INBOX_ID"))
+#MAILTRAP_API=os.getenv("MAILTRAP_API")
+#MAILTRAP_USE_SANDBOX=os.getenv("MAILTRAP_USE_SANDBOX", "True").lower() in ("true", "1", "t")
+#MAILTRAP_INBOX_ID=int(os.getenv("MAILTRAP_INBOX_ID"))
 RESEND_API=os.getenv("RESEND_API","re_hBLd9qzs_4hJjRJSnSZD5J39EFfv31WPW")
 
 
